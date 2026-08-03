@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SSM Race Check-In</title>
+<style>
+  :root{
+    --navy:#0b2545;
+    --navy-deep:#081b34;
+    --flag-orange:#ff6a13;
+    --flag-orange-dark:#d4550a;
+    --white:#f5f7fa;
+    --ok-green:#1f9d55;
+    --line:#1c3a63;
+    --pending:#8aa2c2;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:var(--navy-deep);color:var(--white);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  body{display:flex;flex-direction:column;min-height:100vh;}
+
+  header{background:var(--navy);padding:14px 16px 12px;border-bottom:3px solid var(--flag-orange);
+    position:sticky;top:0;z-index:5;}
+  header h1{margin:0;font-size:1.05rem;letter-spacing:.04em;text-transform:uppercase;font-weight:800;}
+  header .sub{margin:2px 0 0;font-size:.78rem;color:var(--pending);}
+
+  .statusbar{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:.75rem;
+    background:var(--navy-deep);border-bottom:1px solid var(--line);}
+  .dot{width:9px;height:9px;border-radius:50%;background:#c0392b;flex:none;}
+  .dot.online{background:var(--ok-green);}
+  .statusbar .count{margin-left:auto;color:var(--pending);}
+
+  main{flex:1;padding:14px 14px 100px;}
+
+  .entry-form{display:flex;gap:8px;margin-bottom:14px;}
+  .entry-form input{flex:1;font-size:1.4rem;text-align:center;font-weight:700;padding:14px 10px;
+    border-radius:10px;border:2px solid var(--line);background:var(--navy);color:var(--white);
+    letter-spacing:.03em;}
+  .entry-form input::placeholder{color:var(--pending);font-weight:600;}
+  .entry-form button{font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;
+    padding:0 20px;border-radius:10px;border:none;background:var(--flag-orange);color:var(--navy-deep);
+    active-state:none;}
+  .entry-form button:active{background:var(--flag-orange-dark);}
+
+  .boat-list{display:flex;flex-direction:column;gap:10px;}
+  .boat-card{background:var(--navy);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;display:flex;align-items:center;gap:12px;}
+  .boat-card.finished{border-color:var(--ok-green);}
+  .boat-num{font-size:1.5rem;font-weight:800;min-width:52px;font-variant-numeric:tabular-nums;}
+  .boat-times{flex:1;font-size:.8rem;color:var(--pending);line-height:1.5;}
+  .boat-times b{color:var(--white);font-variant-numeric:tabular-nums;}
+  .finish-btn{font-size:.85rem;font-weight:800;text-transform:uppercase;padding:12px 16px;
+    border-radius:9px;border:none;white-space:nowrap;}
+  .finish-btn.pending{background:var(--flag-orange);color:var(--navy-deep);}
+  .finish-btn.done{background:var(--ok-green);color:var(--navy-deep);}
+  .sync-flag{font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;
+    border-radius:5px;background:transparent;border:1px solid var(--pending);color:var(--pending);}
+  .sync-flag.synced{border-color:var(--ok-green);color:var(--ok-green);}
+
+  .empty{color:var(--pending);text-align:center;padding:40px 10px;font-size:.9rem;}
+
+  footer{position:fixed;bottom:0;left:0;right:0;background:var(--navy);border-top:2px solid var(--line);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;}
+  footer button{flex:1;padding:14px 8px;border-radius:10px;border:none;font-weight:800;
+    text-transform:uppercase;letter-spacing:.03em;font-size:.85rem;}
+  #syncBtn{background:var(--flag-orange);color:var(--navy-deep);}
+  #syncBtn:disabled{background:#4a5c78;color:var(--pending);}
+  #exportBtn{background:transparent;border:2px solid var(--line);color:var(--white);}
+  #syncMsg{position:fixed;bottom:68px;left:14px;right:14px;text-align:center;font-size:.78rem;
+    color:var(--pending);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Race Check-In &amp; Finish</h1>
+  <p class="sub">Waukegan Harbor · Sailing Series Manager</p>
+</header>
+
+<div class="statusbar">
+  <span class="dot" id="netDot"></span>
+  <span id="netLabel">Offline</span>
+  <span class="count" id="pendingCount">0 pending sync</span>
+</div>
+
+<main>
+  <form class="entry-form" id="checkinForm" autocomplete="off">
+    <input id="boatInput" inputmode="numeric" pattern="[0-9A-Za-z]*" placeholder="Boat #" maxlength="6" required>
+    <button type="submit">Check In</button>
+  </form>
+
+  <div class="boat-list" id="boatList"></div>
+  <p class="empty" id="emptyMsg">No boats checked in yet.</p>
+</main>
+
+<div id="syncMsg"></div>
+<footer>
+  <button id="syncBtn">Sync to SSM</button>
+  <button id="exportBtn">Export CSV backup</button>
+</footer>
+
+<script>
+/* ---------- CONFIG ---------- */
+// Paste the /exec URL from your Apps Script deployment here once you have it.
+const SYNC_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+const STORAGE_KEY = "ssm_race_checkin_v1";
+/* ----------------------------- */
+
+let boats = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+const boatList = document.getElementById("boatList");
+const emptyMsg = document.getElementById("emptyMsg");
+const pendingCountEl = document.getElementById("pendingCount");
+const netDot = document.getElementById("netDot");
+const netLabel = document.getElementById("netLabel");
+const syncBtn = document.getElementById("syncBtn");
+const syncMsg = document.getElementById("syncMsg");
+
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(boats)); }
+
+function fmtTime(iso){
+  if(!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+}
+
+function render(){
+  boatList.innerHTML = "";
+  emptyMsg.style.display = boats.length ? "none" : "block";
+
+  // newest check-ins first
+  [...boats].reverse().forEach(b=>{
+    const card = document.createElement("div");
+    card.className = "boat-card" + (b.finishTime ? " finished" : "");
+    card.innerHTML = `
+      <div class="boat-num">${b.boat}</div>
+      <div class="boat-times">
+        In: <b>${fmtTime(b.checkinTime)}</b><br>
+        Finish: <b>${fmtTime(b.finishTime)}</b>
+        <span class="sync-flag ${b.synced ? "synced" : ""}">${b.synced ? "Synced" : "Not synced"}</span>
+      </div>
+      <button class="finish-btn ${b.finishTime ? "done" : "pending"}" data-id="${b.id}">
+        ${b.finishTime ? "Finished" : "Finish"}
+      </button>`;
+    boatList.appendChild(card);
+  });
+
+  const pending = boats.filter(b=>!b.synced).length;
+  pendingCountEl.textContent = `${pending} pending sync`;
+}
+
+document.getElementById("checkinForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const input = document.getElementById("boatInput");
+  const val = input.value.trim();
+  if(!val) return;
+  boats.push({
+    id: Date.now() + "_" + Math.random().toString(36).slice(2,7),
+    boat: val,
+    checkinTime: new Date().toISOString(),
+    finishTime: null,
+    synced: false
+  });
+  input.value = "";
+  input.focus();
+  save(); render();
+});
+
+boatList.addEventListener("click", e=>{
+  const btn = e.target.closest(".finish-btn");
+  if(!btn) return;
+  const rec = boats.find(b=>b.id===btn.dataset.id);
+  if(!rec || rec.finishTime) return; // don't overwrite an existing finish
+  rec.finishTime = new Date().toISOString();
+  rec.synced = false; // needs re-sync since it changed
+  save(); render();
+});
+
+function updateNetStatus(){
+  const online = navigator.onLine;
+  netDot.classList.toggle("online", online);
+  netLabel.textContent = online ? "Online" : "Offline";
+}
+window.addEventListener("online", updateNetStatus);
+window.addEventListener("offline", updateNetStatus);
+
+syncBtn.addEventListener("click", async ()=>{
+  const unsynced = boats.filter(b=>!b.synced);
+  if(unsynced.length===0){
+    syncMsg.textContent = "Nothing to sync.";
+    setTimeout(()=>syncMsg.textContent="",2500);
+    return;
+  }
+  if(SYNC_URL.includes("PASTE_YOUR")){
+    syncMsg.textContent = "Set SYNC_URL in the page code first.";
+    return;
+  }
+  syncBtn.disabled = true;
+  syncMsg.textContent = `Syncing ${unsynced.length} record(s)...`;
+  try{
+    const res = await fetch(SYNC_URL, {
+      method: "POST",
+      headers: {"Content-Type":"text/plain;charset=utf-8"}, // avoids CORS preflight to Apps Script
+      body: JSON.stringify({records: unsynced})
+    });
+    const data = await res.json();
+    if(data.ok){
+      unsynced.forEach(u=>{
+        const rec = boats.find(b=>b.id===u.id);
+        if(rec) rec.synced = true;
+      });
+      save(); render();
+      syncMsg.textContent = `Synced ${unsynced.length} record(s) ✓`;
+    } else {
+      syncMsg.textContent = "Sync failed: " + (data.error || "unknown error");
+    }
+  }catch(err){
+    syncMsg.textContent = "Sync failed — still offline or URL unreachable.";
+  }finally{
+    syncBtn.disabled = false;
+    setTimeout(()=>syncMsg.textContent="",4000);
+  }
+});
+
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+  const rows = [["Boat","Check-in Time","Finish Time","Synced"]];
+  boats.forEach(b=>rows.push([b.boat, b.checkinTime||"", b.finishTime||"", b.synced?"yes":"no"]));
+  const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "race-checkin-backup-" + new Date().toISOString().slice(0,10) + ".csv";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+updateNetStatus();
+render();
+</script>
+</body>
+</html>
