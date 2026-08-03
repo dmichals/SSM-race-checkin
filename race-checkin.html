@@ -37,6 +37,17 @@
   .roster-bar button{font-size:.72rem;font-weight:700;text-transform:uppercase;padding:6px 10px;
     border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--white);}
 
+  .roster-panel{background:var(--navy);border:1px solid var(--line);border-radius:12px;
+    padding:10px 12px;margin-bottom:14px;max-height:220px;overflow-y:auto;display:none;}
+  .roster-panel.open{display:block;}
+  .roster-search{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--navy-deep);color:var(--white);font-size:.85rem;margin-bottom:8px;}
+  .roster-row{display:flex;gap:10px;padding:6px 2px;border-bottom:1px solid var(--line);font-size:.82rem;}
+  .roster-row:last-child{border-bottom:none;}
+  .roster-row .sail{min-width:44px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .roster-row .name{color:var(--white);}
+  .roster-empty{color:var(--pending);font-size:.8rem;padding:6px 2px;}
+
   .entry-form{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
   .entry-row{display:flex;gap:8px;}
   .boat-name-preview{font-size:.85rem;color:var(--white);min-height:1.2em;padding-left:2px;font-weight:600;}
@@ -96,6 +107,12 @@
   <div class="roster-bar">
     <span id="rosterStatus">Roster: not loaded</span>
     <button id="rosterBtn" type="button">Refresh roster</button>
+    <button id="rosterToggleBtn" type="button">Show list</button>
+  </div>
+
+  <div class="roster-panel" id="rosterPanel">
+    <input class="roster-search" id="rosterSearch" placeholder="Search sail # or boat name..." autocomplete="off">
+    <div id="rosterRows"></div>
   </div>
 
   <form class="entry-form" id="checkinForm" autocomplete="off">
@@ -121,7 +138,7 @@
 <script>
 /* ---------- CONFIG ---------- */
 // Paste the /exec URL from your Apps Script deployment here once you have it.
-const SYNC_URL = "https://script.google.com/macros/s/AKfycbyd3ur6XoHj3M7K7UqrQMhaUo6xT3kH7GDpL_UNbDMeCufwjQQ4OmfLAcKTsgBkaUFq/exec";
+const SYNC_URL = "https://script.google.com/macros/s/AKfycbwu0ydPcAcdqjUJhHJRlFT2_foRKCX2LP2oOKy2q_yCZSmzKDGrSk8mIKxiRSqiVjwo/exec";
 const STORAGE_KEY = "ssm_race_checkin_v1";
 const ROSTER_KEY = "ssm_roster_v1";
 /* ----------------------------- */
@@ -160,6 +177,22 @@ function renderRosterDatalist(){
   list.innerHTML = roster.map(b => `<option value="${b.sail}">${b.name}</option>`).join("");
 }
 
+function renderRosterRows(filter=""){
+  const container = document.getElementById("rosterRows");
+  const f = filter.trim().toLowerCase();
+  const rows = roster.filter(b =>
+    !f || b.sail.toLowerCase().includes(f) || b.name.toLowerCase().includes(f)
+  );
+  if(!rows.length){
+    container.innerHTML = `<div class="roster-empty">${roster.length ? "No matches." : "Load the roster first."}</div>`;
+    return;
+  }
+  container.innerHTML = rows
+    .slice().sort((a,b)=> a.name.localeCompare(b.name))
+    .map(b => `<div class="roster-row"><span class="sail">${b.sail}</span><span class="name">${b.name}</span></div>`)
+    .join("");
+}
+
 async function refreshRoster(){
   const btn = document.getElementById("rosterBtn");
   if(SYNC_URL.includes("PASTE_YOUR")){
@@ -178,6 +211,7 @@ async function refreshRoster(){
       localStorage.setItem(ROSTER_KEY + "_time", rosterUpdatedAt);
       renderRosterStatus();
       renderRosterDatalist();
+      renderRosterRows(document.getElementById("rosterSearch").value);
       syncMsg.textContent = `Loaded ${roster.length} boats ✓`;
     } else {
       syncMsg.textContent = "Roster load failed: " + (data.error || "unknown error");
@@ -260,6 +294,18 @@ document.getElementById("checkinForm").addEventListener("submit", e=>{
 
 document.getElementById("rosterBtn").addEventListener("click", refreshRoster);
 
+document.getElementById("rosterToggleBtn").addEventListener("click", ()=>{
+  const panel = document.getElementById("rosterPanel");
+  const btn = document.getElementById("rosterToggleBtn");
+  const open = panel.classList.toggle("open");
+  btn.textContent = open ? "Hide list" : "Show list";
+  if(open) renderRosterRows(document.getElementById("rosterSearch").value);
+});
+
+document.getElementById("rosterSearch").addEventListener("input", e=>{
+  renderRosterRows(e.target.value);
+});
+
 boatList.addEventListener("click", e=>{
   const btn = e.target.closest(".finish-btn");
   if(!btn) return;
@@ -332,6 +378,7 @@ document.getElementById("exportBtn").addEventListener("click", ()=>{
 updateNetStatus();
 renderRosterStatus();
 renderRosterDatalist();
+renderRosterRows();
 render();
 </script>
 </body>
