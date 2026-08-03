@@ -33,7 +33,14 @@
 
   main{flex:1;padding:14px 14px 100px;}
 
-  .entry-form{display:flex;gap:8px;margin-bottom:14px;}
+  .roster-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:.75rem;color:var(--pending);}
+  .roster-bar button{font-size:.72rem;font-weight:700;text-transform:uppercase;padding:6px 10px;
+    border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--white);}
+
+  .entry-form{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  .entry-row{display:flex;gap:8px;}
+  .boat-name-preview{font-size:.85rem;color:var(--white);min-height:1.2em;padding-left:2px;font-weight:600;}
+  .boat-name-preview.unknown{color:var(--pending);font-weight:400;font-style:italic;}
   .entry-form input{flex:1;font-size:1.4rem;text-align:center;font-weight:700;padding:14px 10px;
     border-radius:10px;border:2px solid var(--line);background:var(--navy);color:var(--white);
     letter-spacing:.03em;}
@@ -49,6 +56,7 @@
   .boat-card.finished{border-color:var(--ok-green);}
   .boat-num{font-size:1.5rem;font-weight:800;min-width:52px;font-variant-numeric:tabular-nums;}
   .boat-times{flex:1;font-size:.8rem;color:var(--pending);line-height:1.5;}
+  .boat-name{display:block;font-size:.8rem;color:var(--white);font-weight:600;margin-bottom:1px;}
   .boat-times b{color:var(--white);font-variant-numeric:tabular-nums;}
   .finish-btn{font-size:.85rem;font-weight:800;text-transform:uppercase;padding:12px 16px;
     border-radius:9px;border:none;white-space:nowrap;}
@@ -85,9 +93,19 @@
 </div>
 
 <main>
+  <div class="roster-bar">
+    <span id="rosterStatus">Roster: not loaded</span>
+    <button id="rosterBtn" type="button">Refresh roster</button>
+  </div>
+
   <form class="entry-form" id="checkinForm" autocomplete="off">
-    <input id="boatInput" inputmode="numeric" pattern="[0-9A-Za-z]*" placeholder="Boat #" maxlength="6" required>
-    <button type="submit">Check In</button>
+    <div class="entry-row">
+      <input id="boatInput" inputmode="numeric" placeholder="Sail #" maxlength="8" required
+        list="rosterList" autocomplete="off">
+      <datalist id="rosterList"></datalist>
+      <button type="submit">Check In</button>
+    </div>
+    <div class="boat-name-preview" id="boatNamePreview"></div>
   </form>
 
   <div class="boat-list" id="boatList"></div>
@@ -105,9 +123,12 @@
 // Paste the /exec URL from your Apps Script deployment here once you have it.
 const SYNC_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
 const STORAGE_KEY = "ssm_race_checkin_v1";
+const ROSTER_KEY = "ssm_roster_v1";
 /* ----------------------------- */
 
 let boats = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+let roster = JSON.parse(localStorage.getItem(ROSTER_KEY) || "[]"); // [{sail, name}, ...]
+let rosterUpdatedAt = localStorage.getItem(ROSTER_KEY + "_time") || null;
 
 const boatList = document.getElementById("boatList");
 const emptyMsg = document.getElementById("emptyMsg");
@@ -118,6 +139,57 @@ const syncBtn = document.getElementById("syncBtn");
 const syncMsg = document.getElementById("syncMsg");
 
 function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(boats)); }
+
+function lookupBoat(sail){
+  const s = String(sail).trim().toLowerCase();
+  return roster.find(b => String(b.sail).trim().toLowerCase() === s) || null;
+}
+
+function renderRosterStatus(){
+  const el = document.getElementById("rosterStatus");
+  if(!roster.length){
+    el.textContent = "Roster: not loaded";
+  } else {
+    const when = rosterUpdatedAt ? new Date(rosterUpdatedAt).toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"}) : "";
+    el.textContent = `Roster: ${roster.length} boats (as of ${when})`;
+  }
+}
+
+function renderRosterDatalist(){
+  const list = document.getElementById("rosterList");
+  list.innerHTML = roster.map(b => `<option value="${b.sail}">${b.name}</option>`).join("");
+}
+
+async function refreshRoster(){
+  const btn = document.getElementById("rosterBtn");
+  if(SYNC_URL.includes("PASTE_YOUR")){
+    syncMsg.textContent = "Set SYNC_URL in the page code first.";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+  try{
+    const res = await fetch(SYNC_URL + "?action=roster");
+    const data = await res.json();
+    if(data.ok){
+      roster = data.roster;
+      rosterUpdatedAt = new Date().toISOString();
+      localStorage.setItem(ROSTER_KEY, JSON.stringify(roster));
+      localStorage.setItem(ROSTER_KEY + "_time", rosterUpdatedAt);
+      renderRosterStatus();
+      renderRosterDatalist();
+      syncMsg.textContent = `Loaded ${roster.length} boats ✓`;
+    } else {
+      syncMsg.textContent = "Roster load failed: " + (data.error || "unknown error");
+    }
+  }catch(err){
+    syncMsg.textContent = "Roster load failed — check connection.";
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Refresh roster";
+    setTimeout(()=>syncMsg.textContent="",3500);
+  }
+}
 
 function fmtTime(iso){
   if(!iso) return "—";
@@ -136,6 +208,7 @@ function render(){
     card.innerHTML = `
       <div class="boat-num">${b.boat}</div>
       <div class="boat-times">
+        ${b.boatName ? `<span class="boat-name">${b.boatName}</span>` : ""}
         In: <b>${fmtTime(b.checkinTime)}</b><br>
         Finish: <b>${fmtTime(b.finishTime)}</b>
         <span class="sync-flag ${b.synced ? "synced" : ""}">${b.synced ? "Synced" : "Not synced"}</span>
@@ -150,22 +223,42 @@ function render(){
   pendingCountEl.textContent = `${pending} pending sync`;
 }
 
+const boatInput = document.getElementById("boatInput");
+const boatNamePreview = document.getElementById("boatNamePreview");
+
+boatInput.addEventListener("input", ()=>{
+  const match = lookupBoat(boatInput.value);
+  if(!boatInput.value.trim()){
+    boatNamePreview.textContent = "";
+  } else if(match){
+    boatNamePreview.textContent = match.name;
+    boatNamePreview.classList.remove("unknown");
+  } else {
+    boatNamePreview.textContent = "Not in roster — will check in by sail # only";
+    boatNamePreview.classList.add("unknown");
+  }
+});
+
 document.getElementById("checkinForm").addEventListener("submit", e=>{
   e.preventDefault();
-  const input = document.getElementById("boatInput");
-  const val = input.value.trim();
+  const val = boatInput.value.trim();
   if(!val) return;
+  const match = lookupBoat(val);
   boats.push({
     id: Date.now() + "_" + Math.random().toString(36).slice(2,7),
     boat: val,
+    boatName: match ? match.name : "",
     checkinTime: new Date().toISOString(),
     finishTime: null,
     synced: false
   });
-  input.value = "";
-  input.focus();
+  boatInput.value = "";
+  boatNamePreview.textContent = "";
+  boatInput.focus();
   save(); render();
 });
+
+document.getElementById("rosterBtn").addEventListener("click", refreshRoster);
 
 boatList.addEventListener("click", e=>{
   const btn = e.target.closest(".finish-btn");
@@ -224,8 +317,8 @@ syncBtn.addEventListener("click", async ()=>{
 });
 
 document.getElementById("exportBtn").addEventListener("click", ()=>{
-  const rows = [["Boat","Check-in Time","Finish Time","Synced"]];
-  boats.forEach(b=>rows.push([b.boat, b.checkinTime||"", b.finishTime||"", b.synced?"yes":"no"]));
+  const rows = [["Sail #","Boat Name","Check-in Time","Finish Time","Synced"]];
+  boats.forEach(b=>rows.push([b.boat, b.boatName||"", b.checkinTime||"", b.finishTime||"", b.synced?"yes":"no"]));
   const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], {type:"text/csv"});
   const url = URL.createObjectURL(blob);
@@ -237,6 +330,8 @@ document.getElementById("exportBtn").addEventListener("click", ()=>{
 });
 
 updateNetStatus();
+renderRosterStatus();
+renderRosterDatalist();
 render();
 </script>
 </body>
