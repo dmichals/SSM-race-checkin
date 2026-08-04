@@ -48,6 +48,23 @@
   .roster-row .name{color:var(--white);}
   .roster-empty{color:var(--pending);font-size:.8rem;padding:6px 2px;}
 
+  .setup-panel{background:var(--navy);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;margin-bottom:14px;}
+  .setup-panel h2{margin:0 0 10px;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--pending);}
+  .setup-row{margin-bottom:10px;}
+  .setup-row:last-child{margin-bottom:0;}
+  .setup-row label{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.03em;
+    color:var(--pending);margin-bottom:5px;}
+  .setup-options{display:flex;gap:6px;flex-wrap:wrap;}
+  .setup-btn{flex:1;min-width:48px;padding:9px 6px;border-radius:8px;border:2px solid var(--line);
+    background:var(--navy-deep);color:var(--white);font-weight:800;font-size:.85rem;text-align:center;}
+  .setup-btn.selected{background:var(--flag-orange);border-color:var(--flag-orange);color:var(--navy-deep);}
+
+  .clear-bar{margin-bottom:14px;}
+  #clearBtn{width:100%;padding:11px;border-radius:10px;border:2px solid #c0392b;background:transparent;
+    color:#e07a6f;font-weight:800;text-transform:uppercase;letter-spacing:.03em;font-size:.8rem;}
+
   .entry-form{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
   .entry-row{display:flex;gap:8px;}
   .boat-name-preview{font-size:.85rem;color:var(--white);min-height:1.2em;padding-left:2px;font-weight:600;}
@@ -116,6 +133,50 @@
 </div>
 
 <main>
+  <div class="setup-panel">
+    <h2>Race Setup</h2>
+    <div class="setup-row">
+      <label>Starting Area</label>
+      <div class="setup-options" data-field="startArea">
+        <button type="button" class="setup-btn" data-value="NE">NE</button>
+        <button type="button" class="setup-btn" data-value="NW">NW</button>
+        <button type="button" class="setup-btn" data-value="SE">SE</button>
+        <button type="button" class="setup-btn" data-value="SW">SW</button>
+      </div>
+    </div>
+    <div class="setup-row">
+      <label>Weather Mark</label>
+      <div class="setup-options" data-field="weatherMark">
+        <button type="button" class="setup-btn" data-value="NE">NE</button>
+        <button type="button" class="setup-btn" data-value="NW">NW</button>
+        <button type="button" class="setup-btn" data-value="SE">SE</button>
+        <button type="button" class="setup-btn" data-value="SW">SW</button>
+      </div>
+    </div>
+    <div class="setup-row">
+      <label>Course — JAM</label>
+      <div class="setup-options" data-field="jamCourse">
+        <button type="button" class="setup-btn" data-value="A">A</button>
+        <button type="button" class="setup-btn" data-value="B">B</button>
+        <button type="button" class="setup-btn" data-value="C">C</button>
+        <button type="button" class="setup-btn" data-value="D">D</button>
+      </div>
+    </div>
+    <div class="setup-row">
+      <label>Course — Spinnaker</label>
+      <div class="setup-options" data-field="spinCourse">
+        <button type="button" class="setup-btn" data-value="A">A</button>
+        <button type="button" class="setup-btn" data-value="B">B</button>
+        <button type="button" class="setup-btn" data-value="C">C</button>
+        <button type="button" class="setup-btn" data-value="D">D</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="clear-bar">
+    <button type="button" id="clearBtn">Clear data — start new race</button>
+  </div>
+
   <div class="roster-bar">
     <span id="rosterStatus">Roster: not loaded</span>
     <button id="rosterBtn" type="button">Refresh roster</button>
@@ -159,6 +220,10 @@ let boats = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
 let roster = JSON.parse(localStorage.getItem(ROSTER_KEY) || "[]"); // [{sail, name}, ...]
 let rosterUpdatedAt = localStorage.getItem(ROSTER_KEY + "_time") || null;
 
+const SETUP_KEY = "ssm_race_setup_v1";
+let raceSetup = JSON.parse(localStorage.getItem(SETUP_KEY) || "{}");
+// shape: { startArea, weatherMark, jamCourse, spinCourse }
+
 const boatList = document.getElementById("boatList");
 const emptyMsg = document.getElementById("emptyMsg");
 const pendingCountEl = document.getElementById("pendingCount");
@@ -168,6 +233,48 @@ const syncBtn = document.getElementById("syncBtn");
 const syncMsg = document.getElementById("syncMsg");
 
 function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(boats)); }
+
+function saveSetup(){ localStorage.setItem(SETUP_KEY, JSON.stringify(raceSetup)); }
+
+function renderSetup(){
+  document.querySelectorAll(".setup-options").forEach(group=>{
+    const field = group.dataset.field;
+    group.querySelectorAll(".setup-btn").forEach(btn=>{
+      btn.classList.toggle("selected", raceSetup[field] === btn.dataset.value);
+    });
+  });
+}
+
+document.querySelectorAll(".setup-options").forEach(group=>{
+  group.addEventListener("click", e=>{
+    const btn = e.target.closest(".setup-btn");
+    if(!btn) return;
+    const field = group.dataset.field;
+    // tap selected value again to clear it
+    raceSetup[field] = (raceSetup[field] === btn.dataset.value) ? undefined : btn.dataset.value;
+    saveSetup();
+    renderSetup();
+  });
+});
+
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  if(boats.length === 0){
+    syncMsg.textContent = "Already empty.";
+    setTimeout(()=>syncMsg.textContent="",2000);
+    return;
+  }
+  const unsynced = boats.filter(b=>!b.synced).length;
+  const warning = unsynced > 0
+    ? `${unsynced} record(s) have NOT been synced yet. Clear anyway and lose them?`
+    : `Clear all ${boats.length} check-in record(s) and start a new race?`;
+  if(confirm(warning)){
+    boats = [];
+    save();
+    render();
+    syncMsg.textContent = "Cleared. Ready for new race.";
+    setTimeout(()=>syncMsg.textContent="",3000);
+  }
+});
 
 function lookupBoat(sail){
   const s = String(sail).trim().toLowerCase();
@@ -326,7 +433,11 @@ document.getElementById("checkinForm").addEventListener("submit", e=>{
     boatName: match ? match.name : "",
     checkinTime: new Date().toISOString(),
     finishTime: null,
-    synced: false
+    synced: false,
+    startArea: raceSetup.startArea || "",
+    weatherMark: raceSetup.weatherMark || "",
+    jamCourse: raceSetup.jamCourse || "",
+    spinCourse: raceSetup.spinCourse || ""
   });
   boatInput.value = "";
   boatNamePreview.textContent = "";
@@ -432,8 +543,9 @@ syncBtn.addEventListener("click", async ()=>{
 });
 
 document.getElementById("exportBtn").addEventListener("click", ()=>{
-  const rows = [["Sail #","Boat Name","Check-in Time","Finish Time","Synced"]];
-  boats.forEach(b=>rows.push([b.boat, b.boatName||"", b.checkinTime||"", b.finishTime||"", b.synced?"yes":"no"]));
+  const rows = [["Sail #","Boat Name","Check-in Time","Finish Time","Synced","Start Area","Weather Mark","JAM Course","Spinnaker Course"]];
+  boats.forEach(b=>rows.push([b.boat, b.boatName||"", b.checkinTime||"", b.finishTime||"", b.synced?"yes":"no",
+    b.startArea||"", b.weatherMark||"", b.jamCourse||"", b.spinCourse||""]));
   const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], {type:"text/csv"});
   const url = URL.createObjectURL(blob);
@@ -445,6 +557,7 @@ document.getElementById("exportBtn").addEventListener("click", ()=>{
 });
 
 updateNetStatus();
+renderSetup();
 renderRosterStatus();
 renderRosterDatalist();
 renderRosterRows();
