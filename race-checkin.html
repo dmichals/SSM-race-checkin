@@ -278,9 +278,15 @@ function renderSetup(){
       btn.classList.toggle("selected", raceSetup[field] === btn.dataset.value);
     });
   });
-  document.getElementById("startTime_section4").value = raceSetup.section4Start || "18:45:00";
-  document.getElementById("startTime_section3").value = raceSetup.section3Start || "18:50:00";
-  document.getElementById("startTime_section2").value = raceSetup.section2Start || "18:55:00";
+  // Lock in defaults the first time, so they're saved even if the user
+  // never touches these fields before the first check-in.
+  if(!raceSetup.section4Start) raceSetup.section4Start = "18:45:00";
+  if(!raceSetup.section3Start) raceSetup.section3Start = "18:50:00";
+  if(!raceSetup.section2Start) raceSetup.section2Start = "18:55:00";
+  document.getElementById("startTime_section4").value = raceSetup.section4Start;
+  document.getElementById("startTime_section3").value = raceSetup.section3Start;
+  document.getElementById("startTime_section2").value = raceSetup.section2Start;
+  saveSetup();
 }
 
 document.getElementById("startTime_section4").addEventListener("change", e=>{
