@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -61,6 +61,12 @@
     background:var(--navy-deep);color:var(--white);font-weight:800;font-size:.85rem;text-align:center;}
   .setup-btn.selected{background:var(--flag-orange);border-color:var(--flag-orange);color:var(--navy-deep);}
 
+  .start-times{display:flex;flex-direction:column;gap:8px;}
+  .start-time-item{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .start-time-item span{font-size:.85rem;font-weight:700;color:var(--white);}
+  .start-time-input{background:var(--navy-deep);border:1px solid var(--line);border-radius:8px;
+    color:var(--white);font-size:.95rem;padding:7px 8px;font-variant-numeric:tabular-nums;}
+
   .clear-bar{margin-bottom:14px;}
   #clearBtn{width:100%;padding:11px;border-radius:10px;border:2px solid #c0392b;background:transparent;
     color:#e07a6f;font-weight:800;text-transform:uppercase;letter-spacing:.03em;font-size:.8rem;}
@@ -88,8 +94,10 @@
     word-break:break-word;}
   .boat-times{flex:1;font-size:.8rem;color:var(--pending);line-height:1.5;}
   .boat-times b{color:var(--white);font-variant-numeric:tabular-nums;}
-  .edit-time-btn{margin-left:6px;font-size:.68rem;text-transform:uppercase;font-weight:700;
-    padding:2px 7px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--pending);}
+  .edit-time-btn{margin-left:6px;font-size:.68rem;text-transform:uppercase;font-weight:800;
+    padding:4px 9px;border-radius:6px;border:1.5px solid var(--flag-orange);background:transparent;
+    color:var(--flag-orange);}
+  .finish-line{display:flex;align-items:center;flex-wrap:wrap;gap:2px;margin:3px 0;}
   .finish-edit{display:flex;align-items:center;gap:6px;margin:2px 0;flex-wrap:wrap;}
   .finish-time-input{background:var(--navy-deep);border:1px solid var(--flag-orange);border-radius:7px;
     color:var(--white);font-size:.9rem;padding:5px 6px;font-variant-numeric:tabular-nums;}
@@ -97,6 +105,16 @@
     padding:5px 9px;border-radius:6px;border:none;}
   .edit-save-btn{background:var(--ok-green);color:var(--navy-deep);}
   .edit-cancel-btn{background:transparent;border:1px solid var(--line);color:var(--pending);}
+
+  .status-row{display:flex;gap:6px;margin-top:4px;}
+  .status-btn{font-size:.68rem;text-transform:uppercase;font-weight:800;padding:5px 9px;
+    border-radius:6px;border:1.5px solid var(--line);background:transparent;color:var(--pending);}
+  .status-btn.selected[data-value="DNS"]{background:#5c6b85;border-color:#5c6b85;color:var(--white);}
+  .status-btn.selected[data-value="DNF"]{background:#c0392b;border-color:#c0392b;color:var(--white);}
+  .status-btn.selected[data-value="DSQ"]{background:#8e1f0b;border-color:#8e1f0b;color:var(--white);}
+  .boat-card.dns{border-color:#5c6b85;}
+  .boat-card.dnf{border-color:#c0392b;}
+  .boat-card.dsq{border-color:#8e1f0b;}
   .boat-times b{color:var(--white);font-variant-numeric:tabular-nums;}
   .finish-btn{font-size:.85rem;font-weight:800;text-transform:uppercase;padding:12px 16px;
     border-radius:9px;border:none;white-space:nowrap;}
@@ -171,6 +189,23 @@
         <button type="button" class="setup-btn" data-value="D">D</button>
       </div>
     </div>
+    <div class="setup-row">
+      <label>Section Start Times</label>
+      <div class="start-times">
+        <div class="start-time-item">
+          <span>Section 4</span>
+          <input type="time" step="1" class="start-time-input" id="startTime_section4">
+        </div>
+        <div class="start-time-item">
+          <span>Section 3</span>
+          <input type="time" step="1" class="start-time-input" id="startTime_section3">
+        </div>
+        <div class="start-time-item">
+          <span>Section 2</span>
+          <input type="time" step="1" class="start-time-input" id="startTime_section2">
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="clear-bar">
@@ -243,7 +278,20 @@ function renderSetup(){
       btn.classList.toggle("selected", raceSetup[field] === btn.dataset.value);
     });
   });
+  document.getElementById("startTime_section4").value = raceSetup.section4Start || "18:45:00";
+  document.getElementById("startTime_section3").value = raceSetup.section3Start || "18:50:00";
+  document.getElementById("startTime_section2").value = raceSetup.section2Start || "18:55:00";
 }
+
+document.getElementById("startTime_section4").addEventListener("change", e=>{
+  raceSetup.section4Start = e.target.value; saveSetup();
+});
+document.getElementById("startTime_section3").addEventListener("change", e=>{
+  raceSetup.section3Start = e.target.value; saveSetup();
+});
+document.getElementById("startTime_section2").addEventListener("change", e=>{
+  raceSetup.section2Start = e.target.value; saveSetup();
+});
 
 document.querySelectorAll(".setup-options").forEach(group=>{
   group.addEventListener("click", e=>{
@@ -374,7 +422,8 @@ function render(){
   // newest check-ins first
   [...boats].reverse().forEach(b=>{
     const card = document.createElement("div");
-    card.className = "boat-card" + (b.finishTime ? " finished" : "");
+    const statusClass = b.status ? " " + b.status.toLowerCase() : (b.finishTime ? " finished" : "");
+    card.className = "boat-card" + statusClass;
 
     const finishRow = editingFinishId === b.id
       ? `<div class="finish-edit">
@@ -383,8 +432,10 @@ function render(){
            <button type="button" class="edit-save-btn" data-id="${b.id}">Save</button>
            <button type="button" class="edit-cancel-btn" data-id="${b.id}">Cancel</button>
          </div>`
-      : `Finish: <b>${fmtTime(b.finishTime)}</b>
-         <button type="button" class="edit-time-btn" data-id="${b.id}">Edit</button>`;
+      : `<div class="finish-line">
+           Finish: <b>${fmtTime(b.finishTime)}</b>
+           <button type="button" class="edit-time-btn" data-id="${b.id}">Edit time</button>
+         </div>`;
 
     card.innerHTML = `
       <div class="boat-id-block">
@@ -395,6 +446,11 @@ function render(){
         In: <b>${fmtTime(b.checkinTime)}</b><br>
         ${finishRow}
         <span class="sync-flag ${b.synced ? "synced" : ""}">${b.synced ? "Synced" : "Not synced"}</span>
+        <div class="status-row">
+          <button type="button" class="status-btn ${b.status==="DNS"?"selected":""}" data-value="DNS" data-id="${b.id}">DNS</button>
+          <button type="button" class="status-btn ${b.status==="DNF"?"selected":""}" data-value="DNF" data-id="${b.id}">DNF</button>
+          <button type="button" class="status-btn ${b.status==="DSQ"?"selected":""}" data-value="DSQ" data-id="${b.id}">DSQ</button>
+        </div>
       </div>
       <button class="finish-btn ${b.finishTime ? "done" : "pending"}" data-id="${b.id}">
         ${b.finishTime ? "Finished" : "Finish"}
@@ -437,7 +493,11 @@ document.getElementById("checkinForm").addEventListener("submit", e=>{
     startArea: raceSetup.startArea || "",
     weatherMark: raceSetup.weatherMark || "",
     jamCourse: raceSetup.jamCourse || "",
-    spinCourse: raceSetup.spinCourse || ""
+    spinCourse: raceSetup.spinCourse || "",
+    section4Start: raceSetup.section4Start || "",
+    section3Start: raceSetup.section3Start || "",
+    section2Start: raceSetup.section2Start || "",
+    status: null
   });
   boatInput.value = "";
   boatNamePreview.textContent = "";
@@ -464,6 +524,7 @@ boatList.addEventListener("click", e=>{
   const editBtn = e.target.closest(".edit-time-btn");
   const saveBtn = e.target.closest(".edit-save-btn");
   const cancelBtn = e.target.closest(".edit-cancel-btn");
+  const statusBtn = e.target.closest(".status-btn");
 
   if(finishBtn){
     const rec = boats.find(b=>b.id===finishBtn.dataset.id);
@@ -491,6 +552,16 @@ boatList.addEventListener("click", e=>{
       rec.synced = false;
     }
     editingFinishId = null;
+    save(); render();
+    return;
+  }
+  if(statusBtn){
+    const rec = boats.find(b=>b.id===statusBtn.dataset.id);
+    if(!rec) return;
+    const val = statusBtn.dataset.value;
+    // tap the same status again to clear it
+    rec.status = (rec.status === val) ? null : val;
+    rec.synced = false;
     save(); render();
     return;
   }
@@ -543,9 +614,10 @@ syncBtn.addEventListener("click", async ()=>{
 });
 
 document.getElementById("exportBtn").addEventListener("click", ()=>{
-  const rows = [["Sail #","Boat Name","Check-in Time","Finish Time","Synced","Start Area","Weather Mark","JAM Course","Spinnaker Course"]];
-  boats.forEach(b=>rows.push([b.boat, b.boatName||"", b.checkinTime||"", b.finishTime||"", b.synced?"yes":"no",
-    b.startArea||"", b.weatherMark||"", b.jamCourse||"", b.spinCourse||""]));
+  const rows = [["Sail #","Boat Name","Check-in Time","Finish Time","Status","Synced","Start Area","Weather Mark","JAM Course","Spinnaker Course","Sec4 Start","Sec3 Start","Sec2 Start"]];
+  boats.forEach(b=>rows.push([b.boat, b.boatName||"", b.checkinTime||"", b.finishTime||"", b.status||"", b.synced?"yes":"no",
+    b.startArea||"", b.weatherMark||"", b.jamCourse||"", b.spinCourse||"",
+    b.section4Start||"", b.section3Start||"", b.section2Start||""]));
   const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], {type:"text/csv"});
   const url = URL.createObjectURL(blob);
