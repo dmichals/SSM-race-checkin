@@ -66,6 +66,9 @@
   .start-time-item span{font-size:.85rem;font-weight:700;color:var(--white);}
   .start-time-input{background:var(--navy-deep);border:1px solid var(--line);border-radius:8px;
     color:var(--white);font-size:.95rem;padding:7px 8px;font-variant-numeric:tabular-nums;}
+  .text-input{width:100%;background:var(--navy-deep);border:1px solid var(--line);border-radius:8px;
+    color:var(--white);font-size:.9rem;padding:9px 10px;}
+  .text-input::placeholder{color:var(--pending);}
 
   .clear-bar{margin-bottom:14px;}
   #clearBtn{width:100%;padding:11px;border-radius:10px;border:2px solid #c0392b;background:transparent;
@@ -153,6 +156,14 @@
 <main>
   <div class="setup-panel">
     <h2>Race Setup</h2>
+    <div class="setup-row">
+      <label>Committee Boat</label>
+      <input type="text" class="text-input" id="committeeBoatInput" placeholder="e.g. Chase Boat 2">
+    </div>
+    <div class="setup-row">
+      <label>Recorded By</label>
+      <input type="text" class="text-input" id="recordedByInput" placeholder="Your name">
+    </div>
     <div class="setup-row">
       <label>Starting Area</label>
       <div class="setup-options" data-field="startArea">
@@ -286,6 +297,8 @@ function renderSetup(){
   document.getElementById("startTime_section4").value = raceSetup.section4Start;
   document.getElementById("startTime_section3").value = raceSetup.section3Start;
   document.getElementById("startTime_section2").value = raceSetup.section2Start;
+  document.getElementById("committeeBoatInput").value = raceSetup.committeeBoat || "";
+  document.getElementById("recordedByInput").value = raceSetup.recordedBy || "";
   saveSetup();
 }
 
@@ -297,6 +310,12 @@ document.getElementById("startTime_section3").addEventListener("change", e=>{
 });
 document.getElementById("startTime_section2").addEventListener("change", e=>{
   raceSetup.section2Start = e.target.value; saveSetup();
+});
+document.getElementById("committeeBoatInput").addEventListener("input", e=>{
+  raceSetup.committeeBoat = e.target.value; saveSetup();
+});
+document.getElementById("recordedByInput").addEventListener("input", e=>{
+  raceSetup.recordedBy = e.target.value; saveSetup();
 });
 
 document.querySelectorAll(".setup-options").forEach(group=>{
@@ -503,6 +522,8 @@ document.getElementById("checkinForm").addEventListener("submit", e=>{
     section4Start: raceSetup.section4Start || "",
     section3Start: raceSetup.section3Start || "",
     section2Start: raceSetup.section2Start || "",
+    committeeBoat: raceSetup.committeeBoat || "",
+    recordedBy: raceSetup.recordedBy || "",
     status: null
   });
   boatInput.value = "";
@@ -620,10 +641,11 @@ syncBtn.addEventListener("click", async ()=>{
 });
 
 document.getElementById("exportBtn").addEventListener("click", ()=>{
-  const rows = [["Sail #","Boat Name","Check-in Time","Finish Time","Status","Synced","Start Area","Weather Mark","JAM Course","Spinnaker Course","Sec4 Start","Sec3 Start","Sec2 Start"]];
+  const rows = [["Sail #","Boat Name","Check-in Time","Finish Time","Status","Synced","Start Area","Weather Mark","JAM Course","Spinnaker Course","Sec4 Start","Sec3 Start","Sec2 Start","Committee Boat","Recorded By"]];
   boats.forEach(b=>rows.push([b.boat, b.boatName||"", b.checkinTime||"", b.finishTime||"", b.status||"", b.synced?"yes":"no",
     b.startArea||"", b.weatherMark||"", b.jamCourse||"", b.spinCourse||"",
-    b.section4Start||"", b.section3Start||"", b.section2Start||""]));
+    b.section4Start||"", b.section3Start||"", b.section2Start||"",
+    b.committeeBoat||"", b.recordedBy||""]));
   const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], {type:"text/csv"});
   const url = URL.createObjectURL(blob);
