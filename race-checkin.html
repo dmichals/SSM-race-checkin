@@ -43,6 +43,9 @@
   .roster-search{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
     background:var(--navy-deep);color:var(--white);font-size:.85rem;margin-bottom:8px;}
   .roster-row{display:flex;gap:10px;padding:6px 2px;border-bottom:1px solid var(--line);font-size:.82rem;}
+  .roster-row.checked-in{opacity:.55;}
+  .checked-tag{margin-left:auto;font-size:.68rem;font-weight:800;color:var(--ok-green);
+    text-transform:uppercase;letter-spacing:.02em;}
   .roster-row:last-child{border-bottom:none;}
   .roster-row .sail{min-width:44px;font-weight:700;font-variant-numeric:tabular-nums;}
   .roster-row .name{color:var(--white);}
@@ -381,7 +384,14 @@ function renderRosterRows(filter=""){
   }
   container.innerHTML = rows
     .slice().sort((a,b)=> a.name.localeCompare(b.name))
-    .map(b => `<div class="roster-row"><span class="sail">${b.sail}</span><span class="name">${b.name}</span></div>`)
+    .map(b => {
+      const checkedIn = isAlreadyCheckedIn(b.sail);
+      return `<div class="roster-row${checkedIn ? " checked-in" : ""}">
+        <span class="sail">${b.sail}</span>
+        <span class="name">${b.name}</span>
+        ${checkedIn ? `<span class="checked-tag">✓ In</span>` : ""}
+      </div>`;
+    })
     .join("");
 }
 
@@ -491,9 +501,14 @@ const boatInput = document.getElementById("boatInput");
 const boatNamePreview = document.getElementById("boatNamePreview");
 
 boatInput.addEventListener("input", ()=>{
-  const match = lookupBoat(boatInput.value);
-  if(!boatInput.value.trim()){
+  const val = boatInput.value.trim();
+  const dup = val ? isAlreadyCheckedIn(val) : null;
+  const match = lookupBoat(val);
+  if(!val){
     boatNamePreview.textContent = "";
+  } else if(dup){
+    boatNamePreview.textContent = `Already checked in at ${fmtTime(dup.checkinTime)}`;
+    boatNamePreview.classList.add("unknown");
   } else if(match){
     boatNamePreview.textContent = match.name;
     boatNamePreview.classList.remove("unknown");
@@ -503,10 +518,23 @@ boatInput.addEventListener("input", ()=>{
   }
 });
 
+function isAlreadyCheckedIn(sail){
+  const s = String(sail).trim().toLowerCase();
+  return boats.find(b => String(b.boat).trim().toLowerCase() === s) || null;
+}
+
 document.getElementById("checkinForm").addEventListener("submit", e=>{
   e.preventDefault();
   const val = boatInput.value.trim();
   if(!val) return;
+
+  const dup = isAlreadyCheckedIn(val);
+  if(dup){
+    boatNamePreview.textContent = `Already checked in at ${fmtTime(dup.checkinTime)} — not added again.`;
+    boatNamePreview.classList.add("unknown");
+    return;
+  }
+
   const match = lookupBoat(val);
   boats.push({
     id: Date.now() + "_" + Math.random().toString(36).slice(2,7),
@@ -529,7 +557,7 @@ document.getElementById("checkinForm").addEventListener("submit", e=>{
   boatInput.value = "";
   boatNamePreview.textContent = "";
   boatInput.focus();
-  save(); render();
+  save(); render(); renderRosterRows(document.getElementById("rosterSearch").value);
 });
 
 document.getElementById("rosterBtn").addEventListener("click", refreshRoster);
