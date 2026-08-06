@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RC Boat Check-In Instructions</title>
+<style>
+  :root{
+    --navy:#0b2545;
+    --orange:#d4550a;
+    --orange-bg:#fff2e8;
+    --grey:#444;
+    --line:#e2e6ec;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:#1a1a1a; background:#fff;
+    line-height:1.5;
+  }
+  .wrap{max-width:720px; margin:0 auto; padding:28px 20px 50px;}
+  h1{color:var(--navy); font-size:1.7rem; margin:0 0 2px; font-weight:800;}
+  .subtitle{color:var(--grey); font-size:.92rem; margin:0 0 18px;}
+  hr{border:none; border-top:2px solid var(--navy); margin:0 0 8px;}
+  h2{color:var(--orange); font-size:1.1rem; margin:26px 0 10px; font-weight:700;}
+  ul{margin:0; padding-left:20px;}
+  li{margin-bottom:9px; font-size:.98rem;}
+  li b{color:var(--navy);}
+  .note{
+    background:var(--orange-bg); color:var(--navy); border-radius:8px;
+    padding:10px 14px; font-size:.92rem; margin:10px 0 4px;
+  }
+  footer{
+    margin-top:28px; padding-top:12px; border-top:1px solid var(--line);
+    color:var(--grey); font-size:.85rem;
+  }
+  @media (max-width:480px){
+    h1{font-size:1.4rem;}
+    .wrap{padding:20px 16px 40px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Race Check-In &amp; Finish Tool</h1>
+  <p class="subtitle">Committee boat quick-reference — Sailing Series Manager (SSM)</p>
+  <hr>
+
+  <h2>1. Before You Leave the Dock (need signal)</h2>
+  <ul>
+    <li>Open the check-in tool: <a href="https://dmichals.github.io/SSM-race-checkin/race-checkin" style="color:var(--orange); font-weight:700;">dmichals.github.io/SSM-race-checkin/race-checkin</a>. Leave it open — do not close the tab once you're out on the water.</li>
+    <li>Tap <b>Refresh roster</b> once. This loads all boat names and sail numbers from SSM and saves them to your phone, so autocomplete keeps working with no signal.</li>
+  </ul>
+
+  <h2>2. Race Setup &amp; During the Race (works with zero signal)</h2>
+  <ul>
+    <li>Enter the <b>Committee Boat</b> name and your name under <b>Recorded By</b> at the top of the Race Setup box.</li>
+    <li>In the <b>Race Setup</b> box, set today's Starting Area, Weather Mark, and Courses for JAM and Spinnaker fleets by tapping the correct button for each.</li>
+    <li>Check the three <b>Section Start Times</b> — they default to 18:45:00 (Section 4), 18:50:00 (Section 3), 18:55:00 (Section 2). Edit any of them if today's schedule is different.</li>
+    <li><b>Check a boat in:</b> type the sail number in the Sail # box. The boat name should appear automatically underneath — confirm it's the right boat, then tap <b>Check In</b>.</li>
+    <li><b>Record a finish:</b> find the boat's card in the list and tap the orange <b>Finish</b> button the instant it crosses. This stamps the current time.</li>
+    <li><b>Fix a finish time:</b> if a time needs adjusting, tap <b>Edit time</b> under that boat's finish time, change it, and tap <b>Save</b>.</li>
+    <li><b>Mark DNS / DNF / DSQ:</b> tap the matching button on the boat's card. Tap the same button again to clear it if it was marked by mistake.</li>
+  </ul>
+  <p class="note">All of this is saved directly on your phone. Nothing needs signal until you sync.</p>
+
+  <h2>3. Back in Cell Range</h2>
+  <ul>
+    <li>Tap <b>Sync to SSM</b> once. This sends every check-in and finish time into the spreadsheet.</li>
+    <li>The message under the buttons confirms how many records were synced. If it fails, just try again — nothing is lost, and already-synced boats won't be sent twice.</li>
+    <li>Once you've confirmed the data landed in SSM, tap <b>Clear data — start new race</b> before the next race. It will warn you first if anything is still unsynced.</li>
+  </ul>
+
+  <h2>4. Safety Net</h2>
+  <ul>
+    <li>Tap <b>Export CSV backup</b> any time to save a copy of everything on the phone itself — do this before clearing data if you're at all unsure it synced.</li>
+    <li>Keep a stopwatch or notepad on board as a paper backup in case a phone dies or gets wet.</li>
+    <li>The status bar at the top (red/green dot) shows whether the phone currently has signal — it's just informational, you can keep working either way.</li>
+  </ul>
+
+  <footer>Questions or something not working? Contact Dave.</footer>
+
+</div>
+</body>
+</html>
